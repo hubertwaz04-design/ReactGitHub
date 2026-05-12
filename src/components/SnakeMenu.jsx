@@ -8,8 +8,9 @@ const SnakeMenu = () => {
   const [dir, setDir] = useState({ x: 0, y: -1 }); 
   const [menuItems, setMenuItems] = useState([]);
   const [activePage, setActivePage] = useState('Brak');
+  // NOWOŚĆ: Stan przechowujący informację, czy wąż ma pauzę
+  const [isPaused, setIsPaused] = useState(false); 
 
-  // Tutaj definiujemy nasze zakładki i ID sekcji, do których mają prowadzić
   useEffect(() => {
     const pages = [
       { id: 1, name: 'Główna', color: '#ff4757', targetId: 'strona-glowna' },
@@ -18,7 +19,6 @@ const SnakeMenu = () => {
       { id: 4, name: 'Projekty', color: '#1e90ff', targetId: 'projekty' },
     ];
     
-    // Losowe rozmieszczenie punktów na planszy
     const placedItems = pages.map(page => ({
       ...page,
       x: Math.floor(Math.random() * (GRID_SIZE - 2)) + 1,
@@ -30,41 +30,53 @@ const SnakeMenu = () => {
   // Sterowanie strzałkami
   useEffect(() => {
     const handleKeyDown = (e) => {
-      if(["ArrowUp","ArrowDown","ArrowLeft","ArrowRight"].indexOf(e.code) > -1) e.preventDefault();
-      setDir(prevDir => {
-        switch(e.key) {
-          case 'ArrowUp': return prevDir.y === 1 ? prevDir : { x: 0, y: -1 };
-          case 'ArrowDown': return prevDir.y === -1 ? prevDir : { x: 0, y: 1 };
-          case 'ArrowLeft': return prevDir.x === 1 ? prevDir : { x: -1, y: 0 };
-          case 'ArrowRight': return prevDir.x === -1 ? prevDir : { x: 1, y: 0 };
-          default: return prevDir;
+      if(["ArrowUp","ArrowDown","ArrowLeft","ArrowRight"].indexOf(e.code) > -1) {
+        e.preventDefault();
+        
+        // NOWOŚĆ: Naciśnięcie dowolnej strzałki zdejmuje pauzę!
+        if (isPaused) {
+          setIsPaused(false);
         }
-      });
+
+        setDir(prevDir => {
+          switch(e.key) {
+            case 'ArrowUp': return prevDir.y === 1 ? prevDir : { x: 0, y: -1 };
+            case 'ArrowDown': return prevDir.y === -1 ? prevDir : { x: 0, y: 1 };
+            case 'ArrowLeft': return prevDir.x === 1 ? prevDir : { x: -1, y: 0 };
+            case 'ArrowRight': return prevDir.x === -1 ? prevDir : { x: 1, y: 0 };
+            default: return prevDir;
+          }
+        });
+      }
     };
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, []);
+  }, [isPaused]); // Dodaliśmy isPaused do nasłuchiwacza
 
-  // Ruch węża i wykrywanie kolizji
+  // Ruch węża
   useEffect(() => {
+    // NOWOŚĆ: Jeśli wąż jest zapauzowany, całkowicie zatrzymaj tę funkcję
+    if (isPaused) return;
+
     const moveSnake = setInterval(() => {
       setSnake(prevSnake => {
         const head = prevSnake[0];
         let newX = head.x + dir.x;
         let newY = head.y + dir.y;
 
-        // Przechodzenie przez ściany
         if (newX < 0) newX = GRID_SIZE - 1;
         if (newX >= GRID_SIZE) newX = 0;
         if (newY < 0) newY = GRID_SIZE - 1;
         if (newY >= GRID_SIZE) newY = 0;
 
-        // Sprawdzenie, czy wąż uderzył w zakładkę menu
         const hitItem = menuItems.find(item => item.x === newX && item.y === newY);
+        
         if (hitItem) {
           setActivePage(hitItem.name); 
           
-          // MAGIA NAWIGACJI: Płynne przewijanie do odpowiedniej sekcji!
+          // NOWOŚĆ: Włączamy pauzę w momencie kolizji!
+          setIsPaused(true);
+          
           const section = document.getElementById(hitItem.targetId);
           if (section) {
             section.scrollIntoView({ behavior: 'smooth', block: 'start' });
@@ -76,7 +88,7 @@ const SnakeMenu = () => {
     }, 150); 
     
     return () => clearInterval(moveSnake);
-  }, [dir, menuItems]);
+  }, [dir, menuItems, isPaused]); // Dodaliśmy isPaused do zależności
 
   return (
     <div className="card p-3 m-3" style={{ backgroundColor: '#2f3542', color: 'white' }}>
@@ -90,9 +102,15 @@ const SnakeMenu = () => {
           <div key={i} style={{ position: 'absolute', left: seg.x * CELL_SIZE, top: seg.y * CELL_SIZE, width: CELL_SIZE, height: CELL_SIZE, backgroundColor: i === 0 ? '#7bed9f' : '#2ed573' }} />
         ))}
       </div>
-      <div className="mt-4 text-center">
-        <h5 className="text-secondary">Ostatnio odwiedzona sekcja:</h5>
-        <h3 className="text-warning fw-bold">{activePage}</h3>
+      <div className="mt-4 text-center" style={{ minHeight: '80px' }}>
+        <h5 className="text-secondary mb-1">Ostatnio odwiedzona sekcja:</h5>
+        <h3 className="text-warning fw-bold mb-2">{activePage}</h3>
+        {/* NOWOŚĆ: Wyświetlamy informację o pauzie */}
+        {isPaused && (
+          <span className="badge bg-danger p-2 fs-6 animate__animated animate__pulse animate__infinite">
+            PAUZA - Wciśnij dowolną strzałkę, aby odblokować węża
+          </span>
+        )}
       </div>
     </div>
   );
