@@ -9,12 +9,16 @@ const SnakeMenu = () => {
   const [menuItems, setMenuItems] = useState([]);
   const [activePage, setActivePage] = useState('Brak');
 
+  // Tutaj definiujemy nasze zakładki i ID sekcji, do których mają prowadzić
   useEffect(() => {
     const pages = [
-      { id: 1, name: 'Strona Główna', color: '#ff4757' },
-      { id: 2, name: 'O nas', color: '#2ed573' },
-      { id: 3, name: 'Projekty', color: '#1e90ff' },
+      { id: 1, name: 'Główna', color: '#ff4757', targetId: 'strona-glowna' },
+      { id: 2, name: 'O mnie', color: '#2ed573', targetId: 'o-mnie' },
+      { id: 3, name: 'Artykuły', color: '#feca57', targetId: 'artykuly' },
+      { id: 4, name: 'Projekty', color: '#1e90ff', targetId: 'projekty' },
     ];
+    
+    // Losowe rozmieszczenie punktów na planszy
     const placedItems = pages.map(page => ({
       ...page,
       x: Math.floor(Math.random() * (GRID_SIZE - 2)) + 1,
@@ -23,6 +27,7 @@ const SnakeMenu = () => {
     setMenuItems(placedItems);
   }, []);
 
+  // Sterowanie strzałkami
   useEffect(() => {
     const handleKeyDown = (e) => {
       if(["ArrowUp","ArrowDown","ArrowLeft","ArrowRight"].indexOf(e.code) > -1) e.preventDefault();
@@ -40,6 +45,7 @@ const SnakeMenu = () => {
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, []);
 
+  // Ruch węża i wykrywanie kolizji
   useEffect(() => {
     const moveSnake = setInterval(() => {
       setSnake(prevSnake => {
@@ -47,27 +53,37 @@ const SnakeMenu = () => {
         let newX = head.x + dir.x;
         let newY = head.y + dir.y;
 
+        // Przechodzenie przez ściany
         if (newX < 0) newX = GRID_SIZE - 1;
         if (newX >= GRID_SIZE) newX = 0;
         if (newY < 0) newY = GRID_SIZE - 1;
         if (newY >= GRID_SIZE) newY = 0;
 
+        // Sprawdzenie, czy wąż uderzył w zakładkę menu
         const hitItem = menuItems.find(item => item.x === newX && item.y === newY);
-        if (hitItem) setActivePage(hitItem.name); 
+        if (hitItem) {
+          setActivePage(hitItem.name); 
+          
+          // MAGIA NAWIGACJI: Płynne przewijanie do odpowiedniej sekcji!
+          const section = document.getElementById(hitItem.targetId);
+          if (section) {
+            section.scrollIntoView({ behavior: 'smooth', block: 'start' });
+          }
+        }
 
         return [{ x: newX, y: newY }, ...prevSnake.slice(0, prevSnake.length - 1)];
       });
     }, 150); 
+    
     return () => clearInterval(moveSnake);
   }, [dir, menuItems]);
 
   return (
     <div className="card p-3 m-3" style={{ backgroundColor: '#2f3542', color: 'white' }}>
-      <h3 className="text-center mb-3 text-info">🐍 Interaktywne Menu</h3>
       <div className="mx-auto bg-dark border border-secondary" style={{ position: 'relative', width: GRID_SIZE * CELL_SIZE, height: GRID_SIZE * CELL_SIZE, overflow: 'hidden' }}>
         {menuItems.map(item => (
           <div key={item.id} style={{ position: 'absolute', left: item.x * CELL_SIZE, top: item.y * CELL_SIZE, width: CELL_SIZE, height: CELL_SIZE, backgroundColor: item.color, borderRadius: '50%' }}>
-            <span style={{ position: 'absolute', top: -20, fontSize: '12px', fontWeight: 'bold', color: item.color }}>{item.name}</span>
+            <span style={{ position: 'absolute', top: -20, fontSize: '11px', fontWeight: 'bold', color: item.color, whiteSpace: 'nowrap' }}>{item.name}</span>
           </div>
         ))}
         {snake.map((seg, i) => (
@@ -75,8 +91,8 @@ const SnakeMenu = () => {
         ))}
       </div>
       <div className="mt-4 text-center">
-        <h5>Wybrana strona:</h5>
-        <h2 className="text-warning">{activePage}</h2>
+        <h5 className="text-secondary">Ostatnio odwiedzona sekcja:</h5>
+        <h3 className="text-warning fw-bold">{activePage}</h3>
       </div>
     </div>
   );
